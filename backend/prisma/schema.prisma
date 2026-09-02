@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Using SQLite for zero-setup local development.
+  // To switch to PostgreSQL, change provider to "postgresql"
+  // and update DATABASE_URL in .env accordingly.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt hash — never store plaintext
+  timezone  String   // IANA timezone identifier, e.g. "Asia/Kolkata"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  habits Habit[]
+}
+
+model Habit {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkIns CheckIn[]
+
+  @@index([userId])
+}
+
+model CheckIn {
+  id      String @id @default(cuid())
+  habitId String
+
+  // The UTC instant this check-in was recorded
+  checkedAt DateTime @default(now())
+
+  // The LOCAL calendar day (YYYY-MM-DD) this check-in counts for.
+  // This is derived from checkedAt converted to the user's IANA timezone,
+  // or supplied explicitly for backfilling past dates.
+  // Database-level uniqueness ensures one check-in per local day per habit.
+  localDate String
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  // KEY CONSTRAINT: enforces one check-in per habit per local day at DB level
+  @@unique([habitId, localDate])
+  @@index([habitId])
+}
